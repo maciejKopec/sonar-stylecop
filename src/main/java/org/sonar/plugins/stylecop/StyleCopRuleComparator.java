@@ -19,28 +19,12 @@
  */
 package org.sonar.plugins.stylecop;
 
-import static org.fest.assertions.Assertions.assertThat;
+import java.util.Comparator;
 
-import org.junit.Test;
-import org.sonar.api.rules.Rule;
-
-public class StyleCopRuleTest {
-
-	@Test
-	public void testStyleCopRuleActiveRule() {
-	    Rule rule = mockRule("a#b");
-
-		StyleCopRule styleCopRule = new StyleCopRule(rule);
-		assertThat(styleCopRule.getAnalyzerId()).isEqualTo("a");
-		assertThat(styleCopRule.getRuleName()).isEqualTo("b");
-		assertThat(styleCopRule.getIsEnabled()).isTrue();
-		
-		styleCopRule = new StyleCopRule(rule, false);
-		assertThat(styleCopRule.getIsEnabled()).isFalse();
-
+public class StyleCopRuleComparator implements Comparator<StyleCopRule> {
+	@Override
+	public int compare(StyleCopRule o1, StyleCopRule o2) {
+		return o1.getRuleName().compareToIgnoreCase(o2.getRuleName());
 	}
 
-	private static Rule mockRule(String configKey){
-		return Rule.create("stylecop", configKey);
-	}
 }

@@ -19,19 +19,17 @@
  */
 package org.sonar.plugins.stylecop;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
-import com.google.common.io.Files;
-
-import org.apache.commons.io.IOUtils;
-import org.sonar.api.rules.ActiveRule;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+
+import org.apache.commons.io.IOUtils;
+
+import com.google.common.base.Charsets;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.io.Files;
 
 public class StyleCopSettingsWriter {
 
@@ -87,22 +85,18 @@ public class StyleCopSettingsWriter {
     }
   }
 
-  private static List<String> getAnalyzers(List<StyleCopRule> rules) {
-    ImmutableList.Builder<String> builder = ImmutableList.builder();
-    Set<String> alreadyAddedNamespaces = Sets.newHashSet();
+  private static Set<String> getAnalyzers(List<StyleCopRule> rules) {
+	ImmutableSortedSet.Builder<String> analyzers = ImmutableSortedSet.naturalOrder();
 
     for (StyleCopRule rule : rules) {
-      if (!alreadyAddedNamespaces.contains(rule.getAnalyzerId())) {
-        builder.add(rule.getAnalyzerId());
-        alreadyAddedNamespaces.add(rule.getAnalyzerId());
-      }
+      analyzers.add(rule.getAnalyzerId());
     }
 
-    return builder.build();
+    return analyzers.build();
   }
 
-  private static List<StyleCopRule> getAnalyzerRules(String analyzerId, List<StyleCopRule> rules) {
-    ImmutableList.Builder<StyleCopRule> builder = ImmutableList.builder();
+  private static Set<StyleCopRule> getAnalyzerRules(String analyzerId, List<StyleCopRule> rules) {
+	ImmutableSortedSet.Builder<StyleCopRule> builder = new ImmutableSortedSet.Builder<StyleCopRule>(new StyleCopRuleComparator());
 
     for (StyleCopRule rule : rules) {
       if (rule.getAnalyzerId().equals(analyzerId)) {

@@ -20,7 +20,7 @@
 package org.sonar.plugins.stylecop;
 
 import com.google.common.collect.ImmutableList;
-import org.junit.Rule;
+
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
@@ -35,8 +35,11 @@ import org.sonar.api.resources.Language;
 import org.sonar.api.resources.Project;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rules.ActiveRule;
+import org.sonar.api.rules.Rule;
+import org.sonar.api.rules.RuleQuery;
 import org.sonar.api.scan.filesystem.FileQuery;
 import org.sonar.api.scan.filesystem.ModuleFileSystem;
+import org.sonar.api.rules.RuleFinder;
 
 import java.io.File;
 import java.util.Collections;
@@ -49,7 +52,7 @@ import static org.mockito.Mockito.when;
 
 public class StyleCopSensorTest {
 
-  @Rule
+  @org.junit.Rule
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
@@ -58,10 +61,11 @@ public class StyleCopSensorTest {
     RulesProfile profile = mock(RulesProfile.class);
     ModuleFileSystem fileSystem = mock(ModuleFileSystem.class);
     ResourcePerspectives perspectives = mock(ResourcePerspectives.class);
+    RuleFinder ruleFinder = mock(RuleFinder.class);
 
     Project project = mock(Project.class);
 
-    StyleCopSensor sensor = new StyleCopSensor(settings, profile, fileSystem, perspectives);
+    StyleCopSensor sensor = new StyleCopSensor(settings, profile, fileSystem, perspectives, ruleFinder);
 
     when(fileSystem.files(Mockito.any(FileQuery.class))).thenReturn(ImmutableList.<File>of());
     assertThat(sensor.shouldExecuteOnProject(project)).isFalse();
@@ -81,8 +85,11 @@ public class StyleCopSensorTest {
     RulesProfile profile = mock(RulesProfile.class);
     ModuleFileSystem fileSystem = mock(ModuleFileSystem.class);
     ResourcePerspectives perspectives = mock(ResourcePerspectives.class);
-
-    StyleCopSensor sensor = new StyleCopSensor(mock(Settings.class), profile, fileSystem, perspectives);
+    
+    List<Rule> allRules = mockRules("MyNamespace#AccessModifierMustBeDeclared", "MyNamespace#AccessibleFieldsMustBeginWithUpperCaseLetter");
+    RuleFinder ruleFinder = mockRuleFinder(allRules);
+    
+    StyleCopSensor sensor = new StyleCopSensor(mock(Settings.class), profile, fileSystem, perspectives, ruleFinder);
 
     List<ActiveRule> activeRules = mockActiveRules("AccessModifierMustBeDeclared", "AccessibleFieldsMustBeginWithUpperCaseLetter");
     when(profile.getActiveRulesByRepository("stylecop")).thenReturn(activeRules);
@@ -134,7 +141,7 @@ public class StyleCopSensorTest {
     sensor.analyse(context, fileProvider, styleCopConf, settingsWriter, msBuildWriter, parser, executor);
 
     verify(settingsWriter).write(
-      ImmutableList.of(new StyleCopRule("MyNamespace#AccessModifierMustBeDeclared"), new StyleCopRule("MyNamespace#AccessibleFieldsMustBeginWithUpperCaseLetter")),
+      ImmutableList.of(new StyleCopRule(mockRule("MyNamespace#AccessModifierMustBeDeclared")), new StyleCopRule(mockRule("MyNamespace#AccessibleFieldsMustBeginWithUpperCaseLetter"))),
       Collections.<String>emptyList(),
       new File(workingDir, "StyleCop-settings.StyleCop"));
     verify(executor).execute(
@@ -179,6 +186,14 @@ public class StyleCopSensorTest {
     return builder.build();
   }
 
+  private static List<Rule> mockRules(String... ruleKeys) {
+    ImmutableList.Builder<Rule> builder = ImmutableList.builder();
+    for (String ruleKey : ruleKeys) {
+      builder.add(mockRule(ruleKey));
+    }
+    return builder.build();
+  }
+
   private static StyleCopConfiguration mockStyleCopConf(String msBuildPath, String styleCopDllPath, String projectFilePath, int timeoutMinutes) {
     StyleCopConfiguration styleCopConf = mock(StyleCopConfiguration.class);
     when(styleCopConf.msBuildPath()).thenReturn(msBuildPath);
@@ -187,6 +202,16 @@ public class StyleCopSensorTest {
     when(styleCopConf.timeoutMinutes()).thenReturn(timeoutMinutes);
     when(styleCopConf.ignoredHungarianPrefixes()).thenReturn(Collections.<String>emptyList());
     return styleCopConf;
+  }
+
+  private static Rule mockRule(String configKey){
+	return Rule.create("stylecop", configKey);
+  }
+
+  RuleFinder mockRuleFinder(List<Rule> allRules){
+	RuleFinder ruleFinder = mock(RuleFinder.class);
+	when(ruleFinder.findAll(Mockito.any(RuleQuery.class))).thenReturn(allRules);
+	return ruleFinder;
   }
 
 }

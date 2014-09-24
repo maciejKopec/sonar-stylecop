@@ -34,10 +34,14 @@ import org.sonar.api.profiles.RulesProfile;
 import org.sonar.api.resources.Project;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rules.ActiveRule;
+import org.sonar.api.rules.Rule;
+import org.sonar.api.rules.RuleFinder;
+import org.sonar.api.rules.RuleQuery;
 import org.sonar.api.scan.filesystem.FileQuery;
 import org.sonar.api.scan.filesystem.ModuleFileSystem;
 
 import java.io.File;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -49,12 +53,14 @@ public class StyleCopSensor implements Sensor {
   private final RulesProfile profile;
   private final ModuleFileSystem fileSystem;
   private final ResourcePerspectives perspectives;
+  private final RuleFinder ruleFinder;
 
-  public StyleCopSensor(Settings settings, RulesProfile profile, ModuleFileSystem fileSystem, ResourcePerspectives perspectives) {
+  public StyleCopSensor(Settings settings, RulesProfile profile, ModuleFileSystem fileSystem, ResourcePerspectives perspectives, RuleFinder ruleFinder) {
     this.settings = settings;
     this.profile = profile;
     this.fileSystem = fileSystem;
     this.perspectives = perspectives;
+    this.ruleFinder = ruleFinder;
   }
 
   @Override
@@ -90,8 +96,9 @@ public class StyleCopSensor implements Sensor {
     StyleCopSettingsWriter settingsWriter, StyleCopMsBuildWriter msBuildWriter, StyleCopReportParser parser,
     StyleCopExecutor executor) {
 
+    Set<String> enabledRuleKeys = enabledRuleKeys();
     File settingsFile = new File(fileSystem.workingDir(), "StyleCop-settings.StyleCop");
-    settingsWriter.write(allStyleCopRules(), styleCopConf.ignoredHungarianPrefixes(), settingsFile);
+    settingsWriter.write(allStyleCopRules(enabledRuleKeys), styleCopConf.ignoredHungarianPrefixes(), settingsFile);
 
     File msBuildFile = new File(fileSystem.workingDir(), "StyleCop-msbuild.proj");
     File reportFile = new File(fileSystem.workingDir(), "StyleCop-report.xml");
@@ -108,7 +115,6 @@ public class StyleCopSensor implements Sensor {
 
     boolean skippedIssues = false;
 
-    Set<String> enabledRuleKeys = enabledRuleKeys();
     for (StyleCopIssue issue : parser.parse(reportFile)) {
       File file = new File(issue.source());
       org.sonar.api.resources.File sonarFile = fileProvider.fromIOFile(file);
@@ -155,12 +161,11 @@ public class StyleCopSensor implements Sensor {
     return builder.build();
   }
 
-  private List<StyleCopRule> allStyleCopRules() {
+  private List<StyleCopRule> allStyleCopRules(Set<String> enabledRules) {
     ImmutableList.Builder<StyleCopRule> builder = ImmutableList.builder();
-    for (ActiveRule rule : profile.getActiveRules(true)) {
-      if (rule.getRepositoryKey().equals(StyleCopPlugin.REPOSITORY_KEY)){
-    	builder.add(new StyleCopRule(rule));
-      }
+    Collection<Rule> styleCopRules = ruleFinder.findAll(RuleQuery.create().withRepositoryKey(StyleCopPlugin.REPOSITORY_KEY));
+    for (Rule rule : styleCopRules) {
+      builder.add(new StyleCopRule(rule, enabledRules.contains(rule.getKey())));
     }
 
     return builder.build();

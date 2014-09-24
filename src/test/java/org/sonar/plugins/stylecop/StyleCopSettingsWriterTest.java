@@ -19,29 +19,30 @@
  */
 package org.sonar.plugins.stylecop;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.Files;
-
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import static org.fest.assertions.Assertions.assertThat;
 
 import java.io.File;
 import java.util.Collections;
 
-import static org.fest.assertions.Assertions.assertThat;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.sonar.api.rules.Rule;
+
+import com.google.common.base.Charsets;
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.Files;
 
 public class StyleCopSettingsWriterTest {
 
-  @Rule
+  @org.junit.Rule
   public TemporaryFolder tmp = new TemporaryFolder();
 
   @Test
   public void test() throws Exception {
     File file1 = tmp.newFile();
 
-    new StyleCopSettingsWriter().write(ImmutableList.of(new StyleCopRule("foo#A"), new StyleCopRule("StyleCop.CSharp.NamingRules#C"), new StyleCopRule("foo#B")), ImmutableList.of("aa", "bb"), file1);
+    new StyleCopSettingsWriter().write(ImmutableList.of(new StyleCopRule(mockRule("Foo#A")), new StyleCopRule(mockRule("StyleCop.CSharp.NamingRules#C")), new StyleCopRule(mockRule("Foo#B")),
+    		new StyleCopRule(mockRule("Foo#Inactive"), false)), ImmutableList.of("aa", "bb"), file1);
     String contents1 = Files.toString(file1, Charsets.UTF_8);
 
     assertThat(contents1.replace("\r", "").replace("\n", ""))
@@ -61,7 +62,7 @@ public class StyleCopSettingsWriterTest {
           + "    </Parser>"
           + "  </Parsers>"
           + "  <Analyzers>"
-          + "    <Analyzer AnalyzerId=\"foo\">"
+          + "    <Analyzer AnalyzerId=\"Foo\">"
           + "      <Rules>"
           + "        <Rule Name=\"A\">"
           + "          <RuleSettings>"
@@ -71,6 +72,11 @@ public class StyleCopSettingsWriterTest {
           + "        <Rule Name=\"B\">"
           + "          <RuleSettings>"
           + "            <BooleanProperty Name=\"Enabled\">True</BooleanProperty>"
+          + "          </RuleSettings>"
+          + "        </Rule>"
+          + "        <Rule Name=\"Inactive\">"
+          + "          <RuleSettings>"
+          + "            <BooleanProperty Name=\"Enabled\">False</BooleanProperty>"
           + "          </RuleSettings>"
           + "        </Rule>"
           + "      </Rules>"
@@ -94,7 +100,7 @@ public class StyleCopSettingsWriterTest {
           + "</StyleCopSettings>");
 
     File file2 = tmp.newFile();
-    new StyleCopSettingsWriter().write(ImmutableList.of(new StyleCopRule("baz#SomeRuleKey")), Collections.<String>emptyList(), file2);
+    new StyleCopSettingsWriter().write(ImmutableList.of(new StyleCopRule(mockRule("baz#SomeRuleKey"))), Collections.<String>emptyList(), file2);
     String contents2 = Files.toString(file2, Charsets.UTF_8);
 
     assertThat(contents2)
@@ -103,5 +109,9 @@ public class StyleCopSettingsWriterTest {
       .doesNotContain("foo")
       .doesNotContain("Hungarian");
   }
+
+  private static Rule mockRule(String configKey){
+		return Rule.create("stylecop", configKey);
+	}
 
 }

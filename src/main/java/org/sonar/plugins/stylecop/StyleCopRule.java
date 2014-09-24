@@ -19,28 +19,25 @@
  */
 package org.sonar.plugins.stylecop;
 
-import org.sonar.api.rules.ActiveRule;
+import org.sonar.api.rules.Rule;
 
 public class StyleCopRule {
 
+	private final Rule rule;
 	private final String analyzerId;
-
 	private final Boolean isEnabled;
-
 	private final String ruleName;
-
-	public StyleCopRule(ActiveRule activeRule) {
-		this(activeRule.getConfigKey(), activeRule.isEnabled());
-	}
-
-	public StyleCopRule(String ruleConfigKey)  {
-		this(ruleConfigKey, true);
-	}
 	
-	public StyleCopRule(String ruleConfigKey, Boolean isEnabled) {
+	public StyleCopRule(Rule rule, Boolean isEnabled) {
+		this.rule = rule;
+		String ruleConfigKey = rule.getConfigKey();
 		this.analyzerId = ruleConfigKey.substring(0, ruleConfigKey.indexOf('#'));
 		this.ruleName = ruleConfigKey.substring(analyzerId.length() + 1);
 		this.isEnabled = isEnabled;
+	}
+
+	public StyleCopRule(Rule rule) {
+		this(rule, true);
 	}
 
 	@Override
@@ -54,7 +51,7 @@ public class StyleCopRule {
 
 	    StyleCopRule that = (StyleCopRule) o;
 
-	    return analyzerId.equals(that.getAnalyzerId()) && ruleName.equals(that.getRuleName());
+	    return rule.equals(that.rule);
 	  }
 
 	public String getAnalyzerId() {
@@ -62,7 +59,7 @@ public class StyleCopRule {
 	}
 	
 	public String getConfigKey() {
-		return analyzerId + "#" + ruleName;
+		return rule.getConfigKey();
 	}
 
 	public Boolean getIsEnabled() {
