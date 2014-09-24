@@ -24,7 +24,9 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
+
 import org.apache.commons.io.IOUtils;
+import org.sonar.api.rules.ActiveRule;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,24 +35,37 @@ import java.util.Set;
 
 public class StyleCopSettingsWriter {
 
-  public void write(List<String> ruleConfigKeys, Iterable<String> ignoredHungarianPrefixes, File file) {
+  public void write(List<StyleCopRule> rules, Iterable<String> ignoredHungarianPrefixes, File file) {
     StringBuilder sb = new StringBuilder();
 
     appendLine(sb, "<StyleCopSettings Version=\"105\">");
+    appendLine(sb, "  <Parsers>");
+    appendLine(sb, "    <Parser ParserId=\"StyleCop.CSharp.CsParser\">");
+    appendLine(sb, "      <ParserSettings>");
+    appendLine(sb, "        <CollectionProperty Name=\"GeneratedFileFilters\">");
+    appendLine(sb, "          <Value>\\.g\\.cs$</Value>");
+    appendLine(sb, "          <Value>\\.generated\\.cs$</Value>");
+    appendLine(sb, "          <Value>\\.g\\.i\\.cs$</Value>");
+    appendLine(sb, "          <Value>TemporaryGeneratedFile_.*\\.cs$</Value>");
+    appendLine(sb, "        </CollectionProperty>");
+    appendLine(sb, "        <BooleanProperty Name=\"AnalyzeDesignerFiles\">False</BooleanProperty>");
+    appendLine(sb, "      </ParserSettings>");
+    appendLine(sb, "    </Parser>");
+    appendLine(sb, "  </Parsers>");
     appendLine(sb, "  <Analyzers>");
 
-    for (String ruleNamespace : ruleNamespaces(ruleConfigKeys)) {
-      appendLine(sb, "    <Analyzer AnalyzerId=\"" + ruleNamespace + "\">");
+    for (String analyzerId : getAnalyzers(rules)) {
+      appendLine(sb, "    <Analyzer AnalyzerId=\"" + analyzerId + "\">");
       appendLine(sb, "      <Rules>");
-      for (String ruleKey : ruleKeys(ruleNamespace, ruleConfigKeys)) {
-        appendLine(sb, "        <Rule Name=\"" + ruleKey + "\">");
+      for (StyleCopRule rule : getAnalyzerRules(analyzerId, rules)) {
+        appendLine(sb, "        <Rule Name=\"" + rule.getRuleName() + "\">");
         appendLine(sb, "          <RuleSettings>");
-        appendLine(sb, "            <BooleanProperty Name=\"Enabled\">True</BooleanProperty>");
+        appendLine(sb, "            <BooleanProperty Name=\"Enabled\">" + getBooleanString(rule.getIsEnabled()) + "</BooleanProperty>");
         appendLine(sb, "          </RuleSettings>");
         appendLine(sb, "        </Rule>");
       }
       appendLine(sb, "      </Rules>");
-      if ("StyleCop.CSharp.NamingRules".equals(ruleNamespace)) {
+      if ("StyleCop.CSharp.NamingRules".equals(analyzerId)) {
         appendLine(sb, "      <AnalyzerSettings>");
         appendLine(sb, "        <CollectionProperty Name=\"Hungarian\">");
         for (String ignoredHungarianPrefix : ignoredHungarianPrefixes) {
@@ -72,28 +87,26 @@ public class StyleCopSettingsWriter {
     }
   }
 
-  private static List<String> ruleNamespaces(List<String> ruleConfigKeys) {
+  private static List<String> getAnalyzers(List<StyleCopRule> rules) {
     ImmutableList.Builder<String> builder = ImmutableList.builder();
     Set<String> alreadyAddedNamespaces = Sets.newHashSet();
 
-    for (String ruleConfigKey : ruleConfigKeys) {
-      String ruleNamespace = ruleConfigKey.substring(0, ruleConfigKey.indexOf('#'));
-      if (!alreadyAddedNamespaces.contains(ruleNamespace)) {
-        builder.add(ruleNamespace);
-        alreadyAddedNamespaces.add(ruleNamespace);
+    for (StyleCopRule rule : rules) {
+      if (!alreadyAddedNamespaces.contains(rule.getAnalyzerId())) {
+        builder.add(rule.getAnalyzerId());
+        alreadyAddedNamespaces.add(rule.getAnalyzerId());
       }
     }
 
     return builder.build();
   }
 
-  private static List<String> ruleKeys(String ruleNamespace, List<String> ruleConfigKeys) {
-    ImmutableList.Builder<String> builder = ImmutableList.builder();
+  private static List<StyleCopRule> getAnalyzerRules(String analyzerId, List<StyleCopRule> rules) {
+    ImmutableList.Builder<StyleCopRule> builder = ImmutableList.builder();
 
-    for (String ruleConfigKey : ruleConfigKeys) {
-      if (ruleConfigKey.startsWith(ruleNamespace)) {
-        String ruleKey = ruleConfigKey.substring(ruleNamespace.length() + 1);
-        builder.add(ruleKey);
+    for (StyleCopRule rule : rules) {
+      if (rule.getAnalyzerId().equals(analyzerId)) {
+        builder.add(rule);
       }
     }
 
@@ -104,5 +117,10 @@ public class StyleCopSettingsWriter {
     sb.append(s);
     sb.append(IOUtils.LINE_SEPARATOR);
   }
+
+  private String getBooleanString(Boolean b) {
+	String s = b.toString();
+	return s.substring(0, 1).toUpperCase() + s.substring(1);
+}
 
 }

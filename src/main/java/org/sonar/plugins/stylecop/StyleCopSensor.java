@@ -22,6 +22,7 @@ package org.sonar.plugins.stylecop;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sonar.api.batch.Sensor;
@@ -90,7 +91,7 @@ public class StyleCopSensor implements Sensor {
     StyleCopExecutor executor) {
 
     File settingsFile = new File(fileSystem.workingDir(), "StyleCop-settings.StyleCop");
-    settingsWriter.write(enabledRuleConfigKeys(), styleCopConf.ignoredHungarianPrefixes(), settingsFile);
+    settingsWriter.write(allStyleCopRules(), styleCopConf.ignoredHungarianPrefixes(), settingsFile);
 
     File msBuildFile = new File(fileSystem.workingDir(), "StyleCop-msbuild.proj");
     File reportFile = new File(fileSystem.workingDir(), "StyleCop-report.xml");
@@ -146,19 +147,22 @@ public class StyleCopSensor implements Sensor {
     LOG.debug("Skipping the StyleCop issue at line " + issue.reportLine() + " " + reason);
   }
 
-  private List<String> enabledRuleConfigKeys() {
-    ImmutableList.Builder<String> builder = ImmutableList.builder();
-    for (ActiveRule activeRule : profile.getActiveRulesByRepository(StyleCopPlugin.REPOSITORY_KEY)) {
-      builder.add(activeRule.getConfigKey());
-    }
-    return builder.build();
-  }
-
   private Set<String> enabledRuleKeys() {
     ImmutableSet.Builder<String> builder = ImmutableSet.builder();
     for (ActiveRule activeRule : profile.getActiveRulesByRepository(StyleCopPlugin.REPOSITORY_KEY)) {
       builder.add(activeRule.getRuleKey());
     }
+    return builder.build();
+  }
+
+  private List<StyleCopRule> allStyleCopRules() {
+    ImmutableList.Builder<StyleCopRule> builder = ImmutableList.builder();
+    for (ActiveRule rule : profile.getActiveRules(true)) {
+      if (rule.getRepositoryKey().equals(StyleCopPlugin.REPOSITORY_KEY)){
+    	builder.add(new StyleCopRule(rule));
+      }
+    }
+
     return builder.build();
   }
 

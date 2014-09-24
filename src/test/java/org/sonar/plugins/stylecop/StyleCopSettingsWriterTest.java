@@ -22,6 +22,7 @@ package org.sonar.plugins.stylecop;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -40,12 +41,25 @@ public class StyleCopSettingsWriterTest {
   public void test() throws Exception {
     File file1 = tmp.newFile();
 
-    new StyleCopSettingsWriter().write(ImmutableList.of("foo#A", "StyleCop.CSharp.NamingRules#C", "foo#B"), ImmutableList.of("aa", "bb"), file1);
+    new StyleCopSettingsWriter().write(ImmutableList.of(new StyleCopRule("foo#A"), new StyleCopRule("StyleCop.CSharp.NamingRules#C"), new StyleCopRule("foo#B")), ImmutableList.of("aa", "bb"), file1);
     String contents1 = Files.toString(file1, Charsets.UTF_8);
 
     assertThat(contents1.replace("\r", "").replace("\n", ""))
       .isEqualTo(
         "<StyleCopSettings Version=\"105\">"
+          + "  <Parsers>"
+          + "    <Parser ParserId=\"StyleCop.CSharp.CsParser\">"
+          + "      <ParserSettings>"
+          + "        <CollectionProperty Name=\"GeneratedFileFilters\">"
+          + "          <Value>\\.g\\.cs$</Value>"
+          + "          <Value>\\.generated\\.cs$</Value>"
+          + "          <Value>\\.g\\.i\\.cs$</Value>"
+          + "          <Value>TemporaryGeneratedFile_.*\\.cs$</Value>"
+          + "        </CollectionProperty>"
+          + "        <BooleanProperty Name=\"AnalyzeDesignerFiles\">False</BooleanProperty>"
+          + "      </ParserSettings>"
+          + "    </Parser>"
+          + "  </Parsers>"
           + "  <Analyzers>"
           + "    <Analyzer AnalyzerId=\"foo\">"
           + "      <Rules>"
@@ -80,14 +94,14 @@ public class StyleCopSettingsWriterTest {
           + "</StyleCopSettings>");
 
     File file2 = tmp.newFile();
-    new StyleCopSettingsWriter().write(ImmutableList.of("baz#SomeRuleKey"), Collections.<String>emptyList(), file2);
+    new StyleCopSettingsWriter().write(ImmutableList.of(new StyleCopRule("baz#SomeRuleKey")), Collections.<String>emptyList(), file2);
     String contents2 = Files.toString(file2, Charsets.UTF_8);
 
     assertThat(contents2)
       .contains("baz")
       .contains("SomeRuleKey")
       .doesNotContain("foo")
-      .doesNotContain("CollectionProperty");
+      .doesNotContain("Hungarian");
   }
 
 }

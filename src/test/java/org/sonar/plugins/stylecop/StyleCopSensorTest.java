@@ -86,6 +86,7 @@ public class StyleCopSensorTest {
 
     List<ActiveRule> activeRules = mockActiveRules("AccessModifierMustBeDeclared", "AccessibleFieldsMustBeginWithUpperCaseLetter");
     when(profile.getActiveRulesByRepository("stylecop")).thenReturn(activeRules);
+    when(profile.getActiveRules(true)).thenReturn(activeRules);
 
     SensorContext context = mock(SensorContext.class);
     FileProvider fileProvider = mock(FileProvider.class);
@@ -133,7 +134,7 @@ public class StyleCopSensorTest {
     sensor.analyse(context, fileProvider, styleCopConf, settingsWriter, msBuildWriter, parser, executor);
 
     verify(settingsWriter).write(
-      ImmutableList.of("MyNamespace#AccessModifierMustBeDeclared", "MyNamespace#AccessibleFieldsMustBeginWithUpperCaseLetter"),
+      ImmutableList.of(new StyleCopRule("MyNamespace#AccessModifierMustBeDeclared"), new StyleCopRule("MyNamespace#AccessibleFieldsMustBeginWithUpperCaseLetter")),
       Collections.<String>emptyList(),
       new File(workingDir, "StyleCop-settings.StyleCop"));
     verify(executor).execute(
@@ -172,6 +173,7 @@ public class StyleCopSensorTest {
       ActiveRule activeRule = mock(ActiveRule.class);
       when(activeRule.getRuleKey()).thenReturn(activeRuleKey);
       when(activeRule.getConfigKey()).thenReturn("MyNamespace#" + activeRuleKey);
+      when(activeRule.getRepositoryKey()).thenReturn("stylecop");
       builder.add(activeRule);
     }
     return builder.build();
